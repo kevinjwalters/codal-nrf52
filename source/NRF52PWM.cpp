@@ -154,7 +154,7 @@ int NRF52PWM::setPeriodUs(float period)
     period_ticks = period_ticks >> prescaler;
     period_ticks = period_ticks << prescaler;
 
-    periodUs = period_ticks / (clock_frequency/1000000);
+    periodUs = (float)period_ticks / (clock_frequency/1000000);
     sampleRate = 1000000 / periodUs;
 
     return DEVICE_OK;
