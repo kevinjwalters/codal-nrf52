@@ -29,15 +29,15 @@ class NRF52PWM : public CodalComponent, public DataSink, public PinPeripheral
 
 private:
     NRF_PWM_Type    &PWM;                   // The hardware PWM module used by this instance
-    bool            enabled;                // Determines if this PWM instance is enabled
-    bool            active;                 // Determines if this PWM instance is actively generating output
-    bool            streaming;              // Determines if the output is streamed, or discrete. Streamed mode maintains ordered, discrete repeats playout most recent data provided.
-    bool            repeatOnEmpty;          // Determines the behaviour of the PWM if a buffer underflow occurs.
-    int             dataReady;              // Count of the number of input buffers awaiting playout
-    float           sampleRate;
-    float           periodUs;               // Period between output samples, in microseconds
-    uint8_t         bufferPlaying;          // ID of the buffer currently being played (0 or 1). Output is hardware double buffered.
-    int8_t          stopStreamingAfterBuf;  // When stopping, the last buffer ID to play beforhand. -1 if no stop is scheduled.
+    volatile bool   enabled;                // Determines if this PWM instance is enabled
+    volatile bool   active;                 // Determines if this PWM instance is actively generating output
+    volatile bool   streaming;              // Determines if the output is streamed, or discrete. Streamed mode maintains ordered, discrete repeats playout most recent data provided.
+    volatile bool   repeatOnEmpty;          // Determines the behaviour of the PWM if a buffer underflow occurs.
+    volatile int    dataReady;              // Count of the number of input buffers awaiting playout
+    volatile float  sampleRate;
+    volatile float  periodUs;               // Period between output samples, in microseconds
+    volatile uint8_t bufferPlaying;          // ID of the buffer currently being played (0 or 1). Output is hardware double buffered.
+    volatile int8_t stopStreamingAfterBuf;  // When stopping, the last buffer ID to play beforhand. -1 if no stop is scheduled.
     ManagedBuffer   buffer[2];              // The ManagedBuffers currently being used by the PWN hardware
 
 public:
