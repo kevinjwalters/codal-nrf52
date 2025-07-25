@@ -234,7 +234,7 @@ int NRF52PWM::tryPull(uint8_t b)
 
         // If a Pull request has been made since we decided to stop, start to fill up the
         // hardware double buffer so that we don't stall.
-        if(dataReady)
+        if (dataReady > 0)
         {
             dataReady--;
             pullRequest();
@@ -242,7 +242,7 @@ int NRF52PWM::tryPull(uint8_t b)
         return 0;
     }
 
-    if (dataReady){
+    if (dataReady > 0) {
         buffer[b] = upstream.pull();
         PWM.SEQ[b].PTR = (uint32_t) buffer[b].getBytes();
         PWM.SEQ[b].CNT = buffer[b].length() / 2;
@@ -290,7 +290,7 @@ int NRF52PWM::pullRequest()
         tryPull(bufferPlaying);
         bufferPlaying = (bufferPlaying + 1) % 2;
 
-        if (bufferPlaying !=0 && dataReady)
+        if (bufferPlaying !=0 && dataReady > 0)
         {
             tryPull(bufferPlaying);
             bufferPlaying = (bufferPlaying + 1) % 2;
