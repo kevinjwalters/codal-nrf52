@@ -82,6 +82,11 @@ namespace codal
         virtual void connect(DataSink &sink);
 
         /**
+         * Experimental: used by downstream caller to indicate all data has been sent.
+         */
+        virtual void dataWanted(int wanted);
+
+        /**
          *  Determine the maximum size of the buffers streamed out of this component.
          *  @return The maximum size of this component's output buffers, in bytes.
          */

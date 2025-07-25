@@ -114,12 +114,26 @@ ManagedBuffer WS2812B::pull()
     if (samplesSent < totalSamples)
         downstream->pullRequest();
     
+    // Replaced by experimental borrowing of dataWanted member function
     // If we have completed playback and blockingbehaviour was requested, wake the fiber that is blocked waiting.
-    if ((samplesSent >= totalSamples) && blockingPlayout)
-        lock.notify();
+    // if ((samplesSent >= totalSamples) && blockingPlayout)
+    //    lock.notify();
 
     return buffer;
 }
+
+
+/**
+ * Experimental: used by downstream caller to indicate all data has been sent.
+ * @param wanted set to DATASTREAM_NOT_WANTED to indicate all data sent
+ */
+void WS2812B::dataWanted(int wanted)
+{
+    if (wanted == DATASTREAM_NOT_WANTED && blockingPlayout)
+        lock.notify();
+}
+
+
 
 /**
  * Perform a non-blocking playout of the given 24 bit RGB/GRB encoded datastream. Thhis method performs no

@@ -231,6 +231,7 @@ int NRF52PWM::tryPull(uint8_t b)
         active = false;
         bufferPlaying = 0;
         stopStreamingAfterBuf = 0;
+        upstream.dataWanted(DATASTREAM_NOT_WANTED);  // all the data has been sent
 
         // If a Pull request has been made since we decided to stop, start to fill up the
         // hardware double buffer so that we don't stall.
