@@ -102,6 +102,31 @@ NRF52PWM::NRF52PWM(NRF_PWM_Type *module, DataSource &source, float sampleRate, u
 }
 
 /**
+  * Clear the statistics, typically used before starting to output PWM
+  * This is flawed due to not zeroing historical data
+  */
+void NRF52PWM::zeroStats() {
+    // copy values to make history
+    for (int i = IRQSTATSCOUNT - 1; i >= 0; i--) {
+       memcpy(&stats[i], &stats[i - 1], sizeof(stats[0]));
+    }
+
+    // zero out current values
+    stats[0].irqcount = stats[0].irq0 = stats[0].irq1 = stats[0].irqboth = 0;
+    for (int i = 0; i < IRQSTATLEN; i++) {
+        stats[0].irq_times[i] = 123456U;
+        stats[0].pwmstart_time[i] = 123456U;
+        stats[0].irq_seqend[i] = -1;
+    }
+    stats[0].irqinactive = 0;
+    stats[0].irqpoststop = 0;
+    stats[0].pwmstarts = stats[0].pwmstops = 0;
+    stats[0].preloadfails = 0;
+    stats[0].dataReadyAtStop = 123456;
+    stats[0].dataStarved = 0;
+}
+
+/**
  * Determine the DAC playback sample rate to the given frequency.
  * @return the current sample rate.
  */
@@ -231,10 +256,14 @@ int NRF52PWM::tryPull(uint8_t b)
         active = false;
         bufferPlaying = 0;
         stopStreamingAfterBuf = 0;
+
+        stats[0].pwmstops++;
+
         upstream.dataWanted(DATASTREAM_NOT_WANTED);  // all the data has been sent
 
         // If a Pull request has been made since we decided to stop, start to fill up the
         // hardware double buffer so that we don't stall.
+        stats[0].dataReadyAtStop = dataReady;
         if (dataReady > 0)
         {
             dataReady--;
@@ -259,6 +288,7 @@ int NRF52PWM::tryPull(uint8_t b)
     {
         // The PWM doesn't seem to respond to changes in the SHORTS register while it's active...
         // instead, we provide an empty buffer to prevent partial repetition of any previous buffer.
+        stats[0].dataStarved++;
         PWM.SEQ[b].PTR = (uint32_t) emptyBuffer;
         PWM.SEQ[b].CNT = (uint32_t) NRF52PWM_EMPTY_BUFFERSIZE;
         stopStreamingAfterBuf = 1;
@@ -298,10 +328,14 @@ int NRF52PWM::pullRequest()
         }
 
         // Check if we've preloaded both buffers
-        if (bufferPlaying == 0)
+        if (bufferPlaying == 0) {
             PWM.TASKS_SEQSTART[0] = 1;
-        else
+            stats[0].pwmstart_time[stats[0].pwmstarts] = DWT->CYCCNT;
+            stats[0].pwmstarts++;
+        } else {
             active = false;
+            stats[0].preloadfails++;
+        }
     }
 
     return DEVICE_OK;
@@ -312,11 +346,24 @@ int NRF52PWM::pullRequest()
  */
 void NRF52PWM::irq()
 {
+    stats[0].irq_times[stats[0].irqcount % IRQSTATLEN] = DWT->CYCCNT;
+    stats[0].irq_seqend[stats[0].irqcount % IRQSTATLEN] = (PWM.EVENTS_SEQEND[1] ? 0b10 : 0) + (PWM.EVENTS_SEQEND[0] ? 0b01 : 0);
+    stats[0].irqcount++;
+    if (PWM.EVENTS_SEQEND[0] && PWM.EVENTS_SEQEND[1]) {
+        stats[0].irqboth++;
+    }
+    if (!active) {
+        stats[0].irqinactive++;
+    }
+    if (stopStreamingAfterBuf) {
+        stats[0].irqpoststop++;
+    }
     // once the sequence has finished playing, load up the next buffer.
     if (PWM.EVENTS_SEQEND[0])
     {
         bufferPlaying = 1;
         tryPull(0);
+        stats[0].irq0++;
 
         PWM.EVENTS_SEQEND[0] = 0;
     }
@@ -325,6 +372,7 @@ void NRF52PWM::irq()
     {
         bufferPlaying = 0;
         tryPull(1);
+        stats[0].irq1++;
 
         PWM.EVENTS_SEQEND[1] = 0;
     }

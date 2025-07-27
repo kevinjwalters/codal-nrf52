@@ -22,8 +22,32 @@
 using namespace codal;
 #endif
 
+#define IRQSTATLEN 40 
+#define IRQSTATSCOUNT 4
+
+#define NRF52PWM_ERROR_SOMETHING 0x01
+
 namespace codal
 {
+struct Nrf52PwmStats {
+    // Debugging section - TODO evolve this into a simpler error flag
+    // TODO work out how to init these once per first active.
+    volatile int    irqcount;               // counter
+    volatile int    irq0;                   // counter for SEQEND[0]
+    volatile int    irq1;                   // counter for SEQEND[1]
+    volatile int    irqboth;                // counter for double event
+    volatile uint32_t irq_times[IRQSTATLEN];      // timestamps
+    volatile int    irq_seqend[IRQSTATLEN];       // bitmask for events
+    volatile int    irqinactive;            // interrupts while !active
+    volatile int    irqpoststop;            // interrupts after a stop (one expected)
+    volatile int    pwmstarts;              // PWM starts
+    volatile uint32_t pwmstart_time[IRQSTATLEN];  // timestamps
+    volatile int    pwmstops;               // PWM stops
+    volatile int    preloadfails;           // failing to load both buffers before start
+    volatile int    dataReadyAtStop;        // preserved dataReady value
+    volatile int    dataStarved;            // upstream failed to produce data in time
+};
+
 class NRF52PWM : public CodalComponent, public DataSink, public PinPeripheral
 {
 
@@ -36,9 +60,12 @@ private:
     volatile int    dataReady;              // Count of the number of input buffers awaiting playout
     volatile float  sampleRate;
     volatile float  periodUs;               // Period between output samples, in microseconds
-    volatile uint8_t bufferPlaying;          // ID of the buffer currently being played (0 or 1). Output is hardware double buffered.
+    volatile uint8_t bufferPlaying;         // ID of the buffer currently being played (0 or 1). Output is hardware double buffered.
     volatile int8_t stopStreamingAfterBuf;  // When stopping, the last buffer ID to play beforhand. -1 if no stop is scheduled.
     ManagedBuffer   buffer[2];              // The ManagedBuffers currently being used by the PWN hardware
+    volatile int    errorFlag;              // TODO - finish this and work out how to retrieve it/clear it.
+
+    struct Nrf52PwmStats stats[4];           // statistics for debugging
 
 public:
 
@@ -47,7 +74,6 @@ public:
 
     // Handles on the instances of this class used the three PWM modules (if present)
     static NRF52PWM *nrf52_pwm_driver[NRF52PWM_PWM_PERIPHERALS];
-    
 
     /**
       * Constructor for an instance of a PWM acting as a sink to a given (likely DMA enabled) datastream.
@@ -58,6 +84,11 @@ public:
       * @param id The id to use for the message bus when transmitting events.
       */
     NRF52PWM(NRF_PWM_Type *module, DataSource &source, float sampleRate = NRF52PWM_DEFAULT_FREQUENCY, uint16_t id = DEVICE_ID_SYSTEM_DAC);
+
+    /**
+     * Clear the statistics, typically used before starting to output PWM
+     */
+    void zeroStats();
 
     /**
      * Callback provided when data is ready.
