@@ -94,7 +94,7 @@ ManagedBuffer WS2812B::pull()
     while (out < end)
     {
         // Add the front/rear padding if aplicable
-        if (samplesSent < WS2812B_ZERO_PADDING || samplesSent > (WS2812B_ZERO_PADDING + samplesToSend))
+        if (samplesSent < WS2812B_ZERO_PADDING || samplesSent >= (WS2812B_ZERO_PADDING + samplesToSend))
         {
             *out = WS2812B_PAD;
         }
