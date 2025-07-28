@@ -25,8 +25,8 @@ void codal::neopixel_send_buffer(Pin &pin, const uint8_t *ptr, int numBytes)
     pwm->connectPin(pin, 0);
 
     pwm->zeroStats();
-
     ws->play(ptr, numBytes);
+    pwm->anomalyCheckStats();
 }
 
 #else

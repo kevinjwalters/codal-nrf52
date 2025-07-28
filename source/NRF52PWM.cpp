@@ -123,8 +123,26 @@ void NRF52PWM::zeroStats() {
     stats[0].pwmstarts = stats[0].pwmstops = 0;
     stats[0].preloadfails = 0;
     stats[0].dataReadyAtStop = 123456;
-    stats[0].dataStarved = 0;
+    stats[0].nodata = 0;
+
+    stats[0].zero_time = DWT->CYCCNT;
 }
+
+
+/**
+  * Check the statistics for anomalies and if any are found
+  * DMESG print whole structure.
+  */
+void NRF52PWM::anomalyCheckStats() {
+   int issues = 0;
+
+   // TODO add checks
+
+   if (issues > 0) {
+      // TODO DMESG printing of everything
+   }
+}
+
 
 /**
  * Determine the DAC playback sample rate to the given frequency.
@@ -288,7 +306,7 @@ int NRF52PWM::tryPull(uint8_t b)
     {
         // The PWM doesn't seem to respond to changes in the SHORTS register while it's active...
         // instead, we provide an empty buffer to prevent partial repetition of any previous buffer.
-        stats[0].dataStarved++;
+        stats[0].nodata++;
         PWM.SEQ[b].PTR = (uint32_t) emptyBuffer;
         PWM.SEQ[b].CNT = (uint32_t) NRF52PWM_EMPTY_BUFFERSIZE;
         stopStreamingAfterBuf = 1;

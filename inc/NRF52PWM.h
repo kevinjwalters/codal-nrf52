@@ -45,7 +45,8 @@ struct Nrf52PwmStats {
     volatile int    pwmstops;               // PWM stops
     volatile int    preloadfails;           // failing to load both buffers before start
     volatile int    dataReadyAtStop;        // preserved dataReady value
-    volatile int    dataStarved;            // upstream failed to produce data in time
+    volatile int    nodata;                 // upstream failed to produce data in time
+    volatile uint32_t zero_time;              // stats zero timestamp
 };
 
 class NRF52PWM : public CodalComponent, public DataSink, public PinPeripheral
@@ -89,6 +90,12 @@ public:
      * Clear the statistics, typically used before starting to output PWM
      */
     void zeroStats();
+
+    /**
+     * Check the statistics for anomalies and if any are found
+     * DMESG print whole structure.
+     */
+    void anomalyCheckStats();
 
     /**
      * Callback provided when data is ready.
