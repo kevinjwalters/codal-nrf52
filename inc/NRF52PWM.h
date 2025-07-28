@@ -68,6 +68,13 @@ private:
 
     struct Nrf52PwmStats stats[4];           // statistics for debugging
 
+    /**
+     * Sets PWM hardware registers for chained buffers or simple one shot playback
+     * 
+     * @ param streamingMode If true, buffers will be streamed in order they are received. If false, the most recent buffer supplied always takes prescedence.
+     */
+    void setPwmLoopInten(bool streamingMode);
+
 public:
 
     // The stream component that is serving our data

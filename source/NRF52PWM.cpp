@@ -244,8 +244,16 @@ void NRF52PWM::setStreamingMode(bool streamingMode, bool repeatOnEmpty)
 {
     this->streaming = streamingMode;
     this->repeatOnEmpty = repeatOnEmpty;
+    setPwmLoopInten(streamingMode);
+}
 
-    if (streaming)
+/**
+ * Sets PWM hardware registers for chained buffers or simple one shot playback
+ * 
+ * @ param streamingMode If true, buffers will be streamed in order they are received. If false, the most recent buffer supplied always takes prescedence.
+ */
+void NRF52PWM::setPwmLoopInten(bool streamingMode) {
+    if (streamingMode)
     {
         PWM.LOOP = 1;
         PWM.SHORTS = PWM_SHORTS_LOOPSDONE_SEQSTART0_Enabled << PWM_SHORTS_LOOPSDONE_SEQSTART0_Pos; 
@@ -259,6 +267,7 @@ void NRF52PWM::setStreamingMode(bool streamingMode, bool repeatOnEmpty)
     }
 }
 
+
 /**
  * Pull a buffer into the given double buffer slot, if one is available.
  * @param b The buffer to fill (either 0 or 1)
@@ -270,6 +279,10 @@ int NRF52PWM::tryPull(uint8_t b)
     {
         PWM.TASKS_STOP = 1;
         while(PWM.EVENTS_STOPPED == 0);
+
+        // Attempt at workaround for stopping problem
+        // https://github.com/lancaster-university/codal-microbit-v2/issues/475
+        setPwmLoopInten(false);  // looping and interrupts off
 
         active = false;
         bufferPlaying = 0;
@@ -347,6 +360,10 @@ int NRF52PWM::pullRequest()
 
         // Check if we've preloaded both buffers
         if (bufferPlaying == 0) {
+            // Attempt at workaround for stopping problem
+            // https://github.com/lancaster-university/codal-microbit-v2/issues/475
+            setPwmLoopInten(streaming);
+
             PWM.TASKS_SEQSTART[0] = 1;
             stats[0].pwmstart_time[stats[0].pwmstarts] = DWT->CYCCNT;
             stats[0].pwmstarts++;
