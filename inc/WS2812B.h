@@ -67,9 +67,9 @@ namespace codal
         WS2812B();
 
         /**
-         * Provide the next available ManagedBuffer to our downstream caller, if available.
+         * Provide the next lump of data to our downstream caller using an existing ManagerBuffer.
          */
-        virtual ManagedBuffer pull();
+        virtual void pull(ManagedBuffer &buffer);
 
         /**
          *  Determine the data format of the buffers streamed out of this component.

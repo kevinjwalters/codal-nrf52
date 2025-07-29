@@ -304,8 +304,8 @@ int NRF52PWM::tryPull(uint8_t b)
         return 0;
     }
 
-    if (dataReady > 0) {
-        buffer[b] = upstream.pull();
+    if (dataReady > 0) { 
+        upstream.pull(buffer[b]);
         PWM.SEQ[b].PTR = (uint32_t) buffer[b].getBytes();
         PWM.SEQ[b].CNT = buffer[b].length() / 2;
 

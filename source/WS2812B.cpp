@@ -79,14 +79,20 @@ WS2812B::setBufferSize(int size)
 }
 
 /**
- * Provide the next available ManagedBuffer to our downstream caller, if available.
+ * Provide the next lump of data to our downstream caller using an existing ManagerBuffer.
  */
-ManagedBuffer WS2812B::pull()
+void WS2812B::pull(ManagedBuffer &buffer)
 {
     // Calculate the amount of data we can transfer in this pull request.
-    // Ensure we send at least two buffers, as most downstream components will likely be double buffered...
+    // Pixels plus RESET period before and after pixel data
     int totalSamples = max(outputBufferSize, samplesToSend + 2 * WS2812B_ZERO_PADDING);
-    ManagedBuffer buffer(outputBufferSize);
+    
+    // Adjust buffer length if required
+    int curBufLen = buffer.length();
+    if (curBufLen < outputBufferSize)
+        buffer = ManagedBuffer(outputBufferSize, BufferInitialize::None);
+    else if (curBufLen > outputBufferSize)
+        buffer.truncate(outputBufferSize);
 
     uint16_t *out = (uint16_t *) &buffer[0];
     uint16_t *end = (uint16_t *) &buffer[buffer.length()];
@@ -113,13 +119,6 @@ ManagedBuffer WS2812B::pull()
     // If we still have data to send, indicate this to our downstream component
     if (samplesSent < totalSamples)
         downstream->pullRequest();
-    
-    // Replaced by experimental borrowing of dataWanted member function
-    // If we have completed playback and blockingbehaviour was requested, wake the fiber that is blocked waiting.
-    // if ((samplesSent >= totalSamples) && blockingPlayout)
-    //    lock.notify();
-
-    return buffer;
 }
 
 
