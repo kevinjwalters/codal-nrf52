@@ -119,6 +119,7 @@ void NRF52PWM::zeroStats() {
         stats[0].irq_seqend[i] = -1;
     }
     stats[0].irqinactive = 0;
+    stats[0].irqprestart = 0;
     stats[0].irqpoststop = 0;
     stats[0].pwmstarts = stats[0].pwmstops = 0;
     stats[0].preloadfails = 0;
@@ -277,12 +278,12 @@ int NRF52PWM::tryPull(uint8_t b)
 {
     if (stopStreamingAfterBuf)
     {
+        // SHORTS must be disabled before STOP as "PWM could be immediately
+        // started again if the LOOPSDONE event occurred in the same peripheral
+        // clock cycle as the STOP task was triggered"
+        setPwmLoopInten(false);  // includes SHORTS off
         PWM.TASKS_STOP = 1;
         while(PWM.EVENTS_STOPPED == 0);
-
-        // Attempt at workaround for stopping problem
-        // https://github.com/lancaster-university/codal-microbit-v2/issues/475
-        setPwmLoopInten(false);  // looping and interrupts off
 
         active = false;
         bufferPlaying = 0;
@@ -290,7 +291,7 @@ int NRF52PWM::tryPull(uint8_t b)
 
         stats[0].pwmstops++;
 
-        upstream.dataWanted(DATASTREAM_NOT_WANTED);  // all the data has been sent
+        upstream.dataWanted(DATASTREAM_NOT_WANTED);  // all the data has been PWMed
 
         // If a Pull request has been made since we decided to stop, start to fill up the
         // hardware double buffer so that we don't stall.
@@ -360,10 +361,7 @@ int NRF52PWM::pullRequest()
 
         // Check if we've preloaded both buffers
         if (bufferPlaying == 0) {
-            // Attempt at workaround for stopping problem
-            // https://github.com/lancaster-university/codal-microbit-v2/issues/475
             setPwmLoopInten(streaming);
-
             PWM.TASKS_SEQSTART[0] = 1;
             stats[0].pwmstart_time[stats[0].pwmstarts] = DWT->CYCCNT;
             stats[0].pwmstarts++;
@@ -392,6 +390,9 @@ void NRF52PWM::irq()
     }
     if (stopStreamingAfterBuf) {
         stats[0].irqpoststop++;
+    }
+    if (stats[0].pwmstarts == 0) {
+        stats[0].irqprestart++;
     }
     // once the sequence has finished playing, load up the next buffer.
     if (PWM.EVENTS_SEQEND[0])

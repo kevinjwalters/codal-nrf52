@@ -39,6 +39,7 @@ struct Nrf52PwmStats {
     volatile uint32_t irq_times[IRQSTATLEN];      // timestamps
     volatile int    irq_seqend[IRQSTATLEN];       // bitmask for events
     volatile int    irqinactive;            // interrupts while !active
+    volatile int    irqprestart;            // interrupts before pwm start (zero expected!)
     volatile int    irqpoststop;            // interrupts after a stop (one expected)
     volatile int    pwmstarts;              // PWM starts
     volatile uint32_t pwmstart_time[IRQSTATLEN];  // timestamps
