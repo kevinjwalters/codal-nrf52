@@ -1,6 +1,7 @@
 #include "NRF52PWM.h"
 #include "nrf.h"
 #include "cmsis.h"
+#include "CodalDmesg.h"
 
 using namespace codal;
 
@@ -134,14 +135,49 @@ void NRF52PWM::zeroStats() {
   * Check the statistics for anomalies and if any are found
   * DMESG print whole structure.
   */
-void NRF52PWM::anomalyCheckStats() {
-   int issues = 0;
+void NRF52PWM::anomalyCheckStats(int bufcnt) {
+    struct Nrf52PwmStats *s = &stats[0];
+    int issues = 0;
 
-   // TODO add checks
+    if (s->irqcount != bufcnt)
+        issues++;
+    if (s->irq0 + s->irq1 > s->irqcount || s->irqboth > 0)
+        issues++;
+    if (s->irqinactive > 0 || s->irqprestart > 0 || s->irqpoststop > 0)
+        issues++; 
+    if (s->pwmstarts != 1 || s->pwmstops != 1)
+        issues++;
+    if (s->preloadfails > 0 || s->dataReadyAtStop > 0 || s->nodata != 1)
+        issues++;
+    if (s->pwmstarts > 0 && s->zero_time > s->pwmstart_time[0])
+        issues++;
+    if (s->pwmstarts > 0 && s->irqcount > 0 && s->pwmstart_time[0] > s->irq_times[0])
+        issues++;
 
-   if (issues > 0) {
-      // TODO DMESG printing of everything
-   }
+    if (DWT->CYCCNT % 1000 < 10)   // TODO - REMOVE JUST FOR TESTING
+        issues++;
+
+    if (issues > 0) {
+        DMESG("NRF52PWM anomalyCheckStart(%d) issues=%d", bufcnt, issues);
+        for (int si = IRQSTATSCOUNT - 1; si >= 0; si--) {
+            struct Nrf52PwmStats *s = &stats[si];
+            DMESG("stats[%d]", si);
+            DMESG("irqcount=%d irq0=%d irq1=%d irqboth=%d",
+                s->irqcount, s->irq0, s->irq1, s->irqboth);
+            DMESG("irqinactive=%d irqprestart=%d irqpoststop=%d pwmstarts=%s pwmstops=%d",
+                s->irqinactive, s->irqprestart, s->irqpoststop, s->pwmstarts, s->pwmstops);
+            DMESG("preloadfails=%d dataReadyAtStop=%d nodata=%d",
+                s->preloadfails, s->dataReadyAtStop, s->nodata);
+            DMESG("TS %u zero", s->zero_time);
+            for (int i = 0; i < IRQSTATLEN && s->pwmstart_time[i] != 123456U; i++) {
+                DMESG("TS %u pwmstart", s->pwmstart_time[i]);
+            }
+            for (int i = 0; i < IRQSTATLEN && s->irq_times[i] != 123456U; i++) {
+                DMESG("TS %u irq %d", s->irq_times[i], s->irq_seqend[i]);
+            }
+            DMESGF("");
+        }
+    }
 }
 
 
@@ -284,6 +320,7 @@ int NRF52PWM::tryPull(uint8_t b)
         setPwmLoopInten(false);  // includes SHORTS off
         PWM.TASKS_STOP = 1;
         while(PWM.EVENTS_STOPPED == 0);
+        disable();
 
         active = false;
         bufferPlaying = 0;
@@ -361,6 +398,7 @@ int NRF52PWM::pullRequest()
 
         // Check if we've preloaded both buffers
         if (bufferPlaying == 0) {
+            enable();
             setPwmLoopInten(streaming);
             PWM.TASKS_SEQSTART[0] = 1;
             stats[0].pwmstart_time[stats[0].pwmstarts] = DWT->CYCCNT;

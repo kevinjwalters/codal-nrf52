@@ -67,8 +67,6 @@ private:
     ManagedBuffer   buffer[2];              // The ManagedBuffers currently being used by the PWN hardware
     volatile int    errorFlag;              // TODO - finish this and work out how to retrieve it/clear it.
 
-    struct Nrf52PwmStats stats[4];           // statistics for debugging
-
     /**
      * Sets PWM hardware registers for chained buffers or simple one shot playback
      * 
@@ -77,6 +75,7 @@ private:
     void setPwmLoopInten(bool streamingMode);
 
 public:
+    struct Nrf52PwmStats stats[4];           // statistics for debugging
 
     // The stream component that is serving our data
     DataSource      &upstream;
@@ -103,7 +102,7 @@ public:
      * Check the statistics for anomalies and if any are found
      * DMESG print whole structure.
      */
-    void anomalyCheckStats();
+    void anomalyCheckStats(int bufcnt);
 
     /**
      * Callback provided when data is ready.

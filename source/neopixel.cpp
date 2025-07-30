@@ -8,6 +8,11 @@ using namespace codal;
 
 #if CONFIG_ENABLED(HARDWARE_NEOPIXEL)
 
+int breakpoint1() {
+    int a=1;
+    return a * 123;
+}
+
 void codal::neopixel_send_buffer(Pin &pin, const uint8_t *ptr, int numBytes)
 {
     static NRF52PWM *pwm = NULL;
@@ -23,9 +28,36 @@ void codal::neopixel_send_buffer(Pin &pin, const uint8_t *ptr, int numBytes)
 
     pwm->connectPin(pin, 0);
 
+    // TODO - remove debugging code
+    if (0) {
+        int prev_count  = pwm->stats[0].irqcount;
+        system_timer_wait_us(400);
+        if (pwm->stats[0].irqcount != prev_count) {
+            target_panic(701); 
+        }
+    }
+
     pwm->zeroStats();
     ws->play(ptr, numBytes);
-    pwm->anomalyCheckStats();
+    int samplesPerBuffer = WS2812B_BUFFER_SIZE / 2;
+    int samples = (numBytes * 8 + 2 * WS2812B_ZERO_PADDING);
+    int bufcnt = samples / samplesPerBuffer + (samples % samplesPerBuffer > 0 ? 1 : 0);
+    pwm->anomalyCheckStats(bufcnt);
+
+    // TODO - remove debuggin code
+    volatile int discard;
+    if (pwm->stats[0].irqprestart > 0 || pwm->stats[0].irqpoststop > 0) {
+        discard = breakpoint1();
+    }
+
+    // TODO - remove debugging code
+    if (0) {
+        int prev_count  = pwm->stats[0].irqcount;
+        system_timer_wait_us(400);
+        if (pwm->stats[0].irqcount != prev_count) {
+            target_panic(702); 
+        }
+    }
 }
 
 #else
