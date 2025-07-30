@@ -19,7 +19,6 @@ void codal::neopixel_send_buffer(Pin &pin, const uint8_t *ptr, int numBytes)
         pwm = new NRF52PWM(NRF_PWM2, *ws, WS2812B_PWM_FREQ);
         pwm->setStreamingMode(true, false);
         pwm->setDecoderMode(PWM_DECODER_LOAD_Common);
-        pwm->setSampleRate(WS2812B_PWM_FREQ);
     }
 
     pwm->connectPin(pin, 0);
