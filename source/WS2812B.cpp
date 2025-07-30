@@ -32,11 +32,10 @@ using namespace codal;
  * @param pwm The PWM peripheral to use to generate the output
  * @param pin The pin connected to the WS2812B pixel strip
  */
-WS2812B::WS2812B()
+WS2812B::WS2812B() : lock(0)
 {
     this->downstream = NULL;
     this->setBufferSize(WS2812B_BUFFER_SIZE);
-    lock.wait();
 } 
 
 /*
