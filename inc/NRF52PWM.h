@@ -32,10 +32,10 @@ namespace codal
 struct Nrf52PwmStats {
     // Debugging section - TODO evolve this into a simpler error flag
     // TODO work out how to init these once per first active.
-    volatile int    irqcount;               // counter
-    volatile int    irq0;                   // counter for SEQEND[0]
-    volatile int    irq1;                   // counter for SEQEND[1]
-    volatile int    irqboth;                // counter for double event
+    volatile uint32_t irqcount;               // counter
+    volatile uint32_t irq0;                   // counter for SEQEND[0]
+    volatile uint32_t irq1;                   // counter for SEQEND[1]
+    volatile uint32_t irqboth;                // counter for double event
     volatile uint32_t irq_times[IRQSTATLEN];      // timestamps
     volatile int    irq_seqend[IRQSTATLEN];       // bitmask for events
     volatile int    irqinactive;            // interrupts while !active
@@ -47,7 +47,9 @@ struct Nrf52PwmStats {
     volatile int    preloadfails;           // failing to load both buffers before start
     volatile int    dataReadyAtStop;        // preserved dataReady value
     volatile int    nodata;                 // upstream failed to produce data in time
-    volatile uint32_t zero_time;              // stats zero timestamp
+    volatile uint32_t zero_time;            // stats zero timestamp
+    volatile uint32_t irqtotalcountatstart; // record of irqtotalcount at start
+    volatile uint32_t irqtotalcountatstop;  // record of irqtotalcount at stop
 };
 
 class NRF52PWM : public CodalComponent, public DataSink, public PinPeripheral
@@ -75,7 +77,8 @@ private:
     void setPwmLoopInten(bool streamingMode);
 
 public:
-    struct Nrf52PwmStats stats[4];           // statistics for debugging
+    volatile uint32_t irqtotalcount;         // total count of interrupts
+    struct Nrf52PwmStats stats[4];           // statistics per output for debugging
 
     // The stream component that is serving our data
     DataSource      &upstream;

@@ -42,6 +42,7 @@ NRF52PWM::NRF52PWM(NRF_PWM_Type *module, DataSource &source, float sampleRate, u
     this->repeatOnEmpty = true;
     this->bufferPlaying = 0;
     this->stopStreamingAfterBuf = 0;
+    this->irqtotalcount = 0;
 
     // Clear empty buffer
     for (int i=0; i<NRF52PWM_EMPTY_BUFFERSIZE; i++)
@@ -126,7 +127,7 @@ void NRF52PWM::zeroStats() {
     stats[0].preloadfails = 0;
     stats[0].dataReadyAtStop = 123456;
     stats[0].nodata = 0;
-
+    stats[0].irqtotalcountatstart = stats[0].irqtotalcountatstop = 0;
     stats[0].zero_time = DWT->CYCCNT;
 }
 
@@ -139,8 +140,15 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
     struct Nrf52PwmStats *s = &stats[0];
     int issues = 0;
 
-    if (s->irqcount != bufcnt)
+    if (s->irqcount != (uint32_t)bufcnt)
         issues++;
+    if (s->irqtotalcountatstop != s->irqtotalcountatstart + s->irqcount)
+        issues++;
+#if IRQSTATSCOUNT > 1 
+    // Look for interrupts occuring while PWM should be not running
+    if (stats[1].irqtotalcountatstop != s->irqtotalcountatstart)
+        issues++;
+#endif
     if (s->irq0 + s->irq1 > s->irqcount || s->irqboth > 0)
         issues++;
     if (s->irqinactive > 0 || s->irqprestart > 0 || s->irqpoststop > 0)
@@ -321,6 +329,7 @@ int NRF52PWM::tryPull(uint8_t b)
         PWM.TASKS_STOP = 1;
         while(PWM.EVENTS_STOPPED == 0);
         disable();
+        stats[0].irqtotalcountatstop = irqtotalcount;
 
         active = false;
         bufferPlaying = 0;
@@ -386,6 +395,7 @@ int NRF52PWM::pullRequest()
     if (streaming && !active)
     {
         active = true;
+        stats[0].irqtotalcountatstart = irqtotalcount;
 
         tryPull(bufferPlaying);
         bufferPlaying = (bufferPlaying + 1) % 2;
@@ -420,6 +430,7 @@ void NRF52PWM::irq()
     stats[0].irq_times[stats[0].irqcount % IRQSTATLEN] = DWT->CYCCNT;
     stats[0].irq_seqend[stats[0].irqcount % IRQSTATLEN] = (PWM.EVENTS_SEQEND[1] ? 0b10 : 0) + (PWM.EVENTS_SEQEND[0] ? 0b01 : 0);
     stats[0].irqcount++;
+    irqtotalcount++;  // this counter will eventually wrap
     if (PWM.EVENTS_SEQEND[0] && PWM.EVENTS_SEQEND[1]) {
         stats[0].irqboth++;
     }

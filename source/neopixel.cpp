@@ -30,7 +30,7 @@ void codal::neopixel_send_buffer(Pin &pin, const uint8_t *ptr, int numBytes)
 
     // TODO - remove debugging code
     if (0) {
-        int prev_count  = pwm->stats[0].irqcount;
+        uint32_t prev_count  = pwm->stats[0].irqcount;
         system_timer_wait_us(400);
         if (pwm->stats[0].irqcount != prev_count) {
             target_panic(701); 
@@ -52,7 +52,7 @@ void codal::neopixel_send_buffer(Pin &pin, const uint8_t *ptr, int numBytes)
 
     // TODO - remove debugging code
     if (0) {
-        int prev_count  = pwm->stats[0].irqcount;
+        uint32_t prev_count  = pwm->stats[0].irqcount;
         system_timer_wait_us(400);
         if (pwm->stats[0].irqcount != prev_count) {
             target_panic(702); 
