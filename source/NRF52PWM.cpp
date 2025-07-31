@@ -151,7 +151,7 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
 #endif
     if (s->irq0 + s->irq1 > s->irqcount || s->irqboth > 0)
         issues++;
-    if (s->irqinactive > 0 || s->irqprestart > 0 || s->irqpoststop > 0)
+    if (s->irqinactive > 0 || s->irqprestart > 0 || s->irqpoststop != 1)
         issues++; 
     if (s->pwmstarts != 1 || s->pwmstops != 1)
         issues++;
