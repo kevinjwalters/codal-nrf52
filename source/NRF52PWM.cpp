@@ -301,6 +301,8 @@ void NRF52PWM::setStreamingMode(bool streamingMode, bool repeatOnEmpty)
 void NRF52PWM::setPwmLoopInten(bool streamingMode) {
     if (streamingMode)
     {
+        // Clearing events here to prevent any immediate spurious interrupts
+        PWM.EVENTS_SEQEND[0] = PWM.EVENTS_SEQEND[1] = 0;
         PWM.LOOP = 1;
         PWM.SHORTS = PWM_SHORTS_LOOPSDONE_SEQSTART0_Enabled << PWM_SHORTS_LOOPSDONE_SEQSTART0_Pos; 
         PWM.INTENSET = (PWM_INTEN_SEQEND0_Enabled << PWM_INTEN_SEQEND0_Pos ) | (PWM_INTEN_SEQEND1_Enabled << PWM_INTEN_SEQEND1_Pos);
