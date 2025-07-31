@@ -328,7 +328,6 @@ int NRF52PWM::tryPull(uint8_t b)
         setPwmLoopInten(false);  // includes SHORTS off
         PWM.TASKS_STOP = 1;
         while(PWM.EVENTS_STOPPED == 0);
-        disable();
         stats[0].irqtotalcountatstop = irqtotalcount;
 
         active = false;
@@ -408,7 +407,6 @@ int NRF52PWM::pullRequest()
 
         // Check if we've preloaded both buffers
         if (bufferPlaying == 0) {
-            enable();
             setPwmLoopInten(streaming);
             PWM.TASKS_SEQSTART[0] = 1;
             stats[0].pwmstart_time[stats[0].pwmstarts] = DWT->CYCCNT;
