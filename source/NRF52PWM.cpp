@@ -146,7 +146,7 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
         issues++;
 #if IRQSTATSCOUNT > 1 
     // Look for interrupts occuring while PWM should be not running
-    if (stats[1].irqtotalcountatstop != s->irqtotalcountatstart)
+    if (s->irqtotalcountatstart != 0 && stats[1].irqtotalcountatstop != s->irqtotalcountatstart)
         issues++;
 #endif
     if (s->irq0 + s->irq1 > s->irqcount || s->irqboth > 0)
@@ -162,10 +162,11 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
     if (s->pwmstarts > 0 && s->irqcount > 0 && s->pwmstart_time[0] > s->irq_times[0])
         issues++;
 
-    if (DWT->CYCCNT % 1000 < 10)   // TODO - REMOVE JUST FOR TESTING
-        issues++;
+    int testtrigger = 0;
+    // if (DWT->CYCCNT % 1000 < 10)   // TODO - REMOVE JUST FOR TESTING
+    //    testtrigger++;
 
-    if (issues > 0) {
+    if (issues > 0 || testtrigger) {
         DMESG("NRF52PWM anomalyCheckStart(%d) issues=%d", bufcnt, issues);
         for (int si = IRQSTATSCOUNT - 1; si >= 0; si--) {
             struct Nrf52PwmStats *s = &stats[si];
@@ -425,13 +426,10 @@ int NRF52PWM::pullRequest()
  */
 void NRF52PWM::irq()
 {
-    stats[0].irq_times[stats[0].irqcount % IRQSTATLEN] = DWT->CYCCNT;
-    stats[0].irq_seqend[stats[0].irqcount % IRQSTATLEN] = (PWM.EVENTS_SEQEND[1] ? 0b10 : 0) + (PWM.EVENTS_SEQEND[0] ? 0b01 : 0);
+    size_t statidx = stats[0].irqcount % IRQSTATLEN;
+    stats[0].irq_times[statidx] = DWT->CYCCNT;
     stats[0].irqcount++;
     irqtotalcount++;  // this counter will eventually wrap
-    if (PWM.EVENTS_SEQEND[0] && PWM.EVENTS_SEQEND[1]) {
-        stats[0].irqboth++;
-    }
     if (!active) {
         stats[0].irqinactive++;
     }
@@ -441,8 +439,10 @@ void NRF52PWM::irq()
     if (stats[0].pwmstarts == 0) {
         stats[0].irqprestart++;
     }
+
     // once the sequence has finished playing, load up the next buffer.
-    if (PWM.EVENTS_SEQEND[0])
+    bool end0 = PWM.EVENTS_SEQEND[0];
+    if (end0)
     {
         bufferPlaying = 1;
         tryPull(0);
@@ -451,7 +451,8 @@ void NRF52PWM::irq()
         PWM.EVENTS_SEQEND[0] = 0;
     }
 
-    if (PWM.EVENTS_SEQEND[1])
+    bool end1 = PWM.EVENTS_SEQEND[1];
+    if (end1)
     {
         bufferPlaying = 0;
         tryPull(1);
@@ -459,6 +460,11 @@ void NRF52PWM::irq()
 
         PWM.EVENTS_SEQEND[1] = 0;
     }
+
+    if (end0 && end1) {
+        stats[0].irqboth++;
+    }
+    stats[0].irq_seqend[statidx] = (end1 ? 0b10 : 0) + (end0 ? 0b01 : 0);
 }
 
 /**
