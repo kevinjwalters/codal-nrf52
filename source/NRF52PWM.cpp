@@ -186,6 +186,7 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
             }
             DMESGF("");
         }
+        system_timer_wait_us(600);  // TODO - remove, temporary to make more visible on logic analyzer
     }
 }
 
