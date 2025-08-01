@@ -5,7 +5,9 @@
 
 using namespace codal;
 
-#define  NRF52PWM_EMPTY_BUFFERSIZE  8
+// TODO Experimenting with larger buffer to observe behave with extra few pulses bug
+// #define  NRF52PWM_EMPTY_BUFFERSIZE  8
+#define  NRF52PWM_EMPTY_BUFFERSIZE 64
 static uint16_t emptyBuffer[NRF52PWM_EMPTY_BUFFERSIZE];
 
 void nrf52_pwm0_irq(void)
