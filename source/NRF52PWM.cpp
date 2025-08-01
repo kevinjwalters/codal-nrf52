@@ -157,15 +157,27 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
         issues++;
     if (s->preloadfails > 0 || s->dataReadyAtStop > 0 || s->nodata != 1)
         issues++;
-    if (s->pwmstarts > 0 && s->zero_time > s->pwmstart_time[0])
-        issues++;
-    if (s->pwmstarts > 0 && s->irqcount > 0 && s->pwmstart_time[0] > s->irq_times[0])
-        issues++;
+    if (s->pwmstarts > 0) {
+        // The wrapping time values require care with maths and comparisons
+        uint32_t z_to_ps = s->pwmstart_time[0] - s->zero_time;
+        if ((int32_t)z_to_ps <= 0)
+            issues++;
+        if (s->irqcount > 0) {
+            uint32_t ps_to_irq = s->irq_times[0] - s->pwmstart_time[0];
+            if ((int32_t)ps_to_irq <= 0)
+                issues++;
+        }
+    }
 
     int testtrigger = 0;
     // if (DWT->CYCCNT % 1000 < 10)   // TODO - REMOVE JUST FOR TESTING
     //    testtrigger++;
 
+    // if (issues > 0) {
+    //     system_timer_wait_us(2000);  // TODO - remove, temporary to make more visible on logic analyzer
+    //     return;
+    // }
+     
     if (issues > 0 || testtrigger) {
         DMESG("NRF52PWM anomalyCheckStart(%d) issues=%d", bufcnt, issues);
         for (int si = IRQSTATSCOUNT - 1; si >= 0; si--) {
@@ -186,7 +198,6 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
             }
             DMESGF("");
         }
-        system_timer_wait_us(600);  // TODO - remove, temporary to make more visible on logic analyzer
     }
 }
 
@@ -448,7 +459,7 @@ void NRF52PWM::irq()
     if (end0)
     {
         bufferPlaying = 1;
-        tryPull(0);
+        tryPull(0);  // TODO log CYCCNT based duration in stats
         stats[0].irq0++;
 
         PWM.EVENTS_SEQEND[0] = 0;
@@ -458,7 +469,7 @@ void NRF52PWM::irq()
     if (end1)
     {
         bufferPlaying = 0;
-        tryPull(1);
+        tryPull(1);  // TODO log CYCCNT based duration in stats
         stats[0].irq1++;
 
         PWM.EVENTS_SEQEND[1] = 0;
