@@ -337,6 +337,7 @@ void NRF52PWM::setPwmLoopInten(bool streamingMode) {
  */
 int NRF52PWM::tryPull(uint8_t b)
 {
+    int filled = 0;
     if (stopStreamingAfterBuf)
     {
         // SHORTS must be disabled before STOP as "PWM could be immediately
@@ -363,7 +364,7 @@ int NRF52PWM::tryPull(uint8_t b)
             dataReady--;
             pullRequest();
         }
-        return 0;
+        goto tryPullReturn;
     }
 
     if (dataReady > 0) { 
@@ -373,7 +374,8 @@ int NRF52PWM::tryPull(uint8_t b)
 
         dataReady--;
 
-        return 1;
+        filled = 1;
+        goto tryPullReturn;
     }
 
     // If we're in active streaming mode, and have requested a buffer and failed to get one, we have an underflow.
@@ -387,7 +389,9 @@ int NRF52PWM::tryPull(uint8_t b)
         PWM.SEQ[b].CNT = (uint32_t) NRF52PWM_EMPTY_BUFFERSIZE;
         stopStreamingAfterBuf = 1;
     }
-    return 0;
+  tryPullReturn:
+
+    return filled;
 }
 
 /**
