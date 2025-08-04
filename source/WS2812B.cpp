@@ -83,7 +83,7 @@ WS2812B::setBufferSize(int size)
 void WS2812B::pull(ManagedBuffer &buffer)
 {
     // Calculate the amount of data we can transfer in this pull request.
-    // Pixels plus RESET period before and after pixel data
+    // Pixels plus RESET periods before and after pixel data
     int totalSamples = max(outputBufferSize, samplesToSend + 2 * WS2812B_ZERO_PADDING);
     
     // Adjust buffer length if required
@@ -96,6 +96,8 @@ void WS2812B::pull(ManagedBuffer &buffer)
     uint16_t *out = (uint16_t *) &buffer[0];
     uint16_t *end = (uint16_t *) &buffer[buffer.length()];
 
+    int index = -1;
+    int bit = 0, bitmask =0;
     while (out < end)
     {
         // Add the front/rear padding if aplicable
@@ -105,10 +107,18 @@ void WS2812B::pull(ManagedBuffer &buffer)
         }
         else
         {
-            int index = (samplesSent - WS2812B_ZERO_PADDING) / 8;
-            int bit = (samplesSent - WS2812B_ZERO_PADDING) % 8;
+            if (index < 0) {
+                index = (samplesSent - WS2812B_ZERO_PADDING) / 8;
+                bit = 7 - (samplesSent - WS2812B_ZERO_PADDING) % 8;
+                bitmask = 0x01 << bit;
+            }
 
-            *out = ((data[index] >> (7-bit)) & 1) ? WS2812B_HIGH : WS2812B_LOW;
+            *out = (data[index] & bitmask) ? WS2812B_HIGH : WS2812B_LOW;
+            bitmask >>= 1;
+            if (bitmask == 0) {
+                index++;
+                bitmask = 0x01 << 7;
+            }
         }
 
         out++;
