@@ -164,19 +164,34 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
         issues++;
     if (s->preloadfails > 0 || s->dataReadyAtStop > 0 || s->nodata != 1)
         issues++;
+
+    uint32_t one_buffer_cyc = (uint32_t)(64 * 128 * periodUs);
+    int32_t irq_intervals[IRQSTATLEN] = {0};
     if (s->pwmstarts > 0) {
         // The wrapping time values require care with maths and comparisons
         uint32_t z_to_ps = s->pwmstart_time[0] - s->zero_time;
         if ((int32_t)z_to_ps <= 0)
             issues++;
         if (s->irqcount > 0) {
-            uint32_t ps_to_irq = s->irq_times[0] - s->pwmstart_time[0];
-            if ((int32_t)ps_to_irq <= 0)
-                issues++;
+            uint32_t prev_event_cyc = s->pwmstart_time[0];
+            uint32_t exp_event_cyc = prev_event_cyc + one_buffer_cyc;
+            for (size_t i = 0; i < s->irqcount; i++) {
+                uint32_t time_to_irq = s->irq_times[i] - prev_event_cyc;
+                irq_intervals[i] = (int32_t)time_to_irq;
+                if (irq_intervals[i] <= 0)
+                    issues++;
+                if (s->irq_times[i] <= exp_event_cyc - 123U) {
+                    issues++;
+                } else if (s->irq_times[i] >= exp_event_cyc + 2345U) {
+                    issues++;
+                }
+                prev_event_cyc = s->irq_times[i];
+                exp_event_cyc += one_buffer_cyc;
+            }
         }
     }
     // TODO - get buffer size from somewhere + clock speed for 64MHz
-    uint32_t risky_cyc = (uint32_t)(64 * 128 * periodUs * 0.90f);
+    uint32_t risky_cyc = (uint32_t)(one_buffer_cyc * 0.90f);
     for (int i = 0; i < IRQSTATLEN && s->trypull_dur[i] != 0; i++) {
         
         if (s->trypull_dur[i] >= risky_cyc) {
@@ -207,10 +222,12 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
                   s->trypullcnt, s->preloadfails, s->dataReadyAtStop, s->nodata);
             DMESG("TS %u zero", s->zero_time);
             for (int i = 0; i < IRQSTATLEN && s->pwmstart_time[i] != 123456U; i++) {
-                DMESG("TS %u pwmstart", s->pwmstart_time[i]);
+                DMESG("TS %u pwmstart fromzero %d",
+                      s->pwmstart_time[i], s->pwmstart_time[i] - s->zero_time);
             }
             for (int i = 0; i < IRQSTATLEN && s->irq_times[i] != 123456U; i++) {
-                DMESG("TS %u irq %d", s->irq_times[i], s->irq_seqend[i]);
+                DMESG("TS %u interval %d irq %d",
+                      s->irq_times[i], irq_intervals[i], s->irq_seqend[i]);
             }
             for (int i = 0; i < IRQSTATLEN && s->trypull_dur[i] != 0; i++) {
                 DMESG("TPDUR %u", s->trypull_dur[i]);
