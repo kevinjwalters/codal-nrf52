@@ -47,7 +47,7 @@ void codal::neopixel_send_buffer(Pin &pin, const uint8_t *ptr, int numBytes)
     ws->play(ptr, numBytes);
     int samplesPerBuffer = WS2812B_BUFFER_SIZE / 2;
     int samples = (numBytes * 8 + 2 * WS2812B_ZERO_PADDING);
-    int bufcnt = min(2,
+    int bufcnt = max(2,
                      samples / samplesPerBuffer + (samples % samplesPerBuffer > 0 ? 1 : 0));
     pwm->anomalyCheckStats(bufcnt);
 
