@@ -226,8 +226,13 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
                       s->pwmstart_time[i], s->pwmstart_time[i] - s->zero_time);
             }
             for (int i = 0; i < IRQSTATLEN && s->irq_times[i] != 123456U; i++) {
-                DMESG("TS %u interval %d irq %d",
-                      s->irq_times[i], irq_intervals[i], s->irq_seqend[i]);
+                if (si == 0) {
+                    DMESG("TS %u interval %d irq %d",
+                          s->irq_times[i], irq_intervals[i], s->irq_seqend[i]);
+                } else {
+                    DMESG("TS %u irq %d",
+                          s->irq_times[i], s->irq_seqend[i]);
+                }
             }
             for (int i = 0; i < IRQSTATLEN && s->trypull_dur[i] != 0; i++) {
                 DMESG("TPDUR %u", s->trypull_dur[i]);
