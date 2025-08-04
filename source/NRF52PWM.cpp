@@ -7,7 +7,10 @@ using namespace codal;
 
 // TODO Experimenting with larger buffer to observe behave with extra few pulses bug
 // #define  NRF52PWM_EMPTY_BUFFERSIZE  8
-#define  NRF52PWM_EMPTY_BUFFERSIZE 64
+// #define  NRF52PWM_EMPTY_BUFFERSIZE 64
+// #define  NRF52PWM_EMPTY_BUFFERSIZE  4
+#define  NRF52PWM_EMPTY_BUFFERSIZE 12
+
 static uint16_t emptyBuffer[NRF52PWM_EMPTY_BUFFERSIZE];
 
 void nrf52_pwm0_irq(void)
@@ -196,9 +199,9 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
         for (int si = IRQSTATSCOUNT - 1; si >= 0; si--) {
             struct Nrf52PwmStats *s = &stats[si];
             DMESG("stats[%d]", si);
-            DMESG("irqcount=%d irq0=%d irq1=%d irqboth=%d",
+            DMESG("irqcount=%u irq0=%u irq1=%u irqboth=%u",
                   s->irqcount, s->irq0, s->irq1, s->irqboth);
-            DMESG("irqinactive=%d irqprestart=%d irqpoststop=%d pwmstarts=%s pwmstops=%d",
+            DMESG("irqinactive=%d irqprestart=%d irqpoststop=%d pwmstarts=%d pwmstops=%d",
                   s->irqinactive, s->irqprestart, s->irqpoststop, s->pwmstarts, s->pwmstops);
             DMESG("trypullcnt=%u preloadfails=%d dataReadyAtStop=%d nodata=%d",
                   s->trypullcnt, s->preloadfails, s->dataReadyAtStop, s->nodata);
