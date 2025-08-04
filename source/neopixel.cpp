@@ -20,6 +20,12 @@ void codal::neopixel_send_buffer(Pin &pin, const uint8_t *ptr, int numBytes)
 
     if (pwm == NULL)
     {
+        // TODO remove this - for CYCCNT for stats
+        // Enable Data Watchpoint and Trace Unit (DWT) Cycle Counter
+        CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+        DWT->CYCCNT = 0;
+        DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
         ws = new WS2812B();
         pwm = new NRF52PWM(NRF_PWM2, *ws, WS2812B_PWM_FREQ);
         pwm->setStreamingMode(true, false);
