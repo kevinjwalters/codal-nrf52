@@ -121,10 +121,12 @@ void NRF52PWM::zeroStats() {
         stats[0].irq_times[i] = 123456U;
         stats[0].pwmstart_time[i] = 123456U;
         stats[0].irq_seqend[i] = -1;
+        stats[0].trypull_dur[i] = 0;
     }
     stats[0].irqinactive = 0;
     stats[0].irqprestart = 0;
     stats[0].irqpoststop = 0;
+    stats[0].trypullcnt = 0;
     stats[0].pwmstarts = stats[0].pwmstops = 0;
     stats[0].preloadfails = 0;
     stats[0].dataReadyAtStop = 123456;
@@ -170,6 +172,15 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
                 issues++;
         }
     }
+    // TODO - get buffer size from somewhere + clock speed for 64MHz
+    uint32_t risky_cyc = (uint32_t)(64 * 128 * periodUs * 0.90f);
+    for (int i = 0; i < IRQSTATLEN && s->trypull_dur[i] != 0; i++) {
+        
+        if (s->trypull_dur[i] >= risky_cyc) {
+            issues++;
+            break;
+        }
+    }
 
     int testtrigger = 0;
     // if (DWT->CYCCNT % 1000 < 10)   // TODO - REMOVE JUST FOR TESTING
@@ -186,17 +197,20 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
             struct Nrf52PwmStats *s = &stats[si];
             DMESG("stats[%d]", si);
             DMESG("irqcount=%d irq0=%d irq1=%d irqboth=%d",
-                s->irqcount, s->irq0, s->irq1, s->irqboth);
+                  s->irqcount, s->irq0, s->irq1, s->irqboth);
             DMESG("irqinactive=%d irqprestart=%d irqpoststop=%d pwmstarts=%s pwmstops=%d",
-                s->irqinactive, s->irqprestart, s->irqpoststop, s->pwmstarts, s->pwmstops);
-            DMESG("preloadfails=%d dataReadyAtStop=%d nodata=%d",
-                s->preloadfails, s->dataReadyAtStop, s->nodata);
+                  s->irqinactive, s->irqprestart, s->irqpoststop, s->pwmstarts, s->pwmstops);
+            DMESG("trypullcnt=%u preloadfails=%d dataReadyAtStop=%d nodata=%d",
+                  s->trypullcnt, s->preloadfails, s->dataReadyAtStop, s->nodata);
             DMESG("TS %u zero", s->zero_time);
             for (int i = 0; i < IRQSTATLEN && s->pwmstart_time[i] != 123456U; i++) {
                 DMESG("TS %u pwmstart", s->pwmstart_time[i]);
             }
             for (int i = 0; i < IRQSTATLEN && s->irq_times[i] != 123456U; i++) {
                 DMESG("TS %u irq %d", s->irq_times[i], s->irq_seqend[i]);
+            }
+            for (int i = 0; i < IRQSTATLEN && s->trypull_dur[i] != 0; i++) {
+                DMESG("TPDUR %u", s->trypull_dur[i]);
             }
             DMESGF("");
         }
@@ -337,7 +351,9 @@ void NRF52PWM::setPwmLoopInten(bool streamingMode) {
  */
 int NRF52PWM::tryPull(uint8_t b)
 {
+    uint32_t t1_cyc = DWT->CYCCNT;
     int filled = 0;
+
     if (stopStreamingAfterBuf)
     {
         // SHORTS must be disabled before STOP as "PWM could be immediately
@@ -391,6 +407,7 @@ int NRF52PWM::tryPull(uint8_t b)
     }
   tryPullReturn:
 
+    stats[0].trypull_dur[stats[0].trypullcnt++ % IRQSTATLEN] = DWT->CYCCNT - t1_cyc;
     return filled;
 }
 

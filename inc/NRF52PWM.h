@@ -32,6 +32,7 @@ namespace codal
 struct Nrf52PwmStats {
     // Debugging section - TODO evolve this into a simpler error flag
     // TODO work out how to init these once per first active.
+    // All times/durations are in cycles
     volatile uint32_t irqcount;               // counter
     volatile uint32_t irq0;                   // counter for SEQEND[0]
     volatile uint32_t irq1;                   // counter for SEQEND[1]
@@ -41,6 +42,8 @@ struct Nrf52PwmStats {
     volatile int    irqinactive;            // interrupts while !active
     volatile int    irqprestart;            // interrupts before pwm start (zero expected!)
     volatile int    irqpoststop;            // interrupts after a stop (one expected)
+    volatile uint32_t trypullcnt;           // counter
+    volatile uint32_t trypull_dur[IRQSTATLEN];  // durations
     volatile int    pwmstarts;              // PWM starts
     volatile uint32_t pwmstart_time[IRQSTATLEN];  // timestamps
     volatile int    pwmstops;               // PWM stops
