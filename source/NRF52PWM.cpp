@@ -180,11 +180,17 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
                 irq_intervals[i] = (int32_t)time_to_irq;
                 if (irq_intervals[i] <= 0)
                     issues++;
-                if (s->irq_times[i] <= exp_event_cyc - 123U) {
+                
+                
+                if (irq_intervals[i] >= one_buffer_cyc + 560U + 1000U)
                     issues++;
-                } else if (s->irq_times[i] >= exp_event_cyc + 2345U) {
-                    issues++;
-                }
+                // The first interrupts is often 9500 ish after start
+                // or 7900 ish - very very odd perhaps more is needed than CYCCNT
+                // if (s->irq_times[i] <= exp_event_cyc - 123U) {
+                //     issues++;
+                // } else if (s->irq_times[i] >= exp_event_cyc + 2345U) {
+                //     issues++;
+                // }
                 prev_event_cyc = s->irq_times[i];
                 exp_event_cyc += one_buffer_cyc;
             }
