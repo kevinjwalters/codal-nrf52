@@ -197,6 +197,18 @@ void WS2812B::_play(const void *data, int length, bool mode)
 
     downstream->pullRequest();
 
+    // TODO - remove these 2ms experimental pauses
+#if 0
+    fiber_sleep(2);
+#endif
+#if 0
+    system_timer_wait_us(2000);
+#endif
+#if 0
+    uint32_t now_cyc = DWT->CYCCNT;
+    while ((uint32_t)(DWT->CYCCNT - now_cyc) < (uint32_t)(2 * 64 * 1000)) {};
+#endif
+
     if (this->blockingPlayout)
         lock.wait();
 }
