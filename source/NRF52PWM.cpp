@@ -394,6 +394,8 @@ int NRF52PWM::tryPull(uint8_t b)
         setPwmLoopInten(false);  // includes SHORTS off
         PWM.TASKS_STOP = 1;
         while(PWM.EVENTS_STOPPED == 0);
+        PWM.EVENTS_SEQEND[0] = PWM.EVENTS_SEQEND[1] = 0;
+
         stats[0].irqtotalcountatstop = irqtotalcount;
 
         active = false;
