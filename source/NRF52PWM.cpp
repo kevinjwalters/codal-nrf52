@@ -436,10 +436,10 @@ int NRF52PWM::tryPull(uint8_t b)
         // instead, we provide an empty buffer to prevent partial repetition of any previous buffer.
         stats[0].nodata++;
         // Zero the existing played data if buffer is larger
-        size_t bufferLen = buffer[b].length() / sizeof(uint16_t);
-        if (false && bufferLen > NRF52PWM_EMPTY_BUFFERSIZE) {  // TODO REMOVE false (a temp disable)
+        size_t sampleCount = buffer[b].length() / sizeof(uint16_t);
+        if (false && sampleCount > NRF52PWM_EMPTY_BUFFERSIZE) {  // TODO REMOVE false (a temp disable)
             uint16_t *bufferData = (uint16_t *) &buffer[b][0];
-            for (size_t i = 0; i < bufferLen; i++)
+            for (size_t i = 0; i < sampleCount; i++)
                 bufferData[i] = PWM_ZERO_DC;
         } else {
             PWM.SEQ[b].PTR = (uint32_t) emptyBuffer;
