@@ -475,6 +475,7 @@ int NRF52PWM::pullRequest()
     {
         active = true;
         stats[0].irqtotalcountatstart = irqtotalcount;
+        upstream.dataWanted(DATASTREAM_WANTED);
 
         tryPull(bufferPlaying);
         bufferPlaying = (bufferPlaying + 1) % 2;

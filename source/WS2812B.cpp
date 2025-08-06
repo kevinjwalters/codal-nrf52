@@ -137,10 +137,10 @@ void WS2812B::pull(ManagedBuffer &buffer)
  */
 void WS2812B::dataWanted(int wanted)
 {
+    DataSource::dataWanted(wanted);
     if (wanted == DATASTREAM_NOT_WANTED && blockingPlayout)
         lock.notify();
 }
-
 
 
 /**
