@@ -10,6 +10,7 @@ using namespace codal;
 // #define  NRF52PWM_EMPTY_BUFFERSIZE 64
 // #define  NRF52PWM_EMPTY_BUFFERSIZE  4
 #define  NRF52PWM_EMPTY_BUFFERSIZE 12
+#define PWM_ZERO_DC 0x8000  // low output
 
 static uint16_t emptyBuffer[NRF52PWM_EMPTY_BUFFERSIZE];
 
@@ -51,7 +52,7 @@ NRF52PWM::NRF52PWM(NRF_PWM_Type *module, DataSource &source, float sampleRate, u
 
     // Clear empty buffer
     for (int i=0; i<NRF52PWM_EMPTY_BUFFERSIZE; i++)
-        emptyBuffer[i] = 0x8000;
+        emptyBuffer[i] = PWM_ZERO_DC;
 
     // Ensure PWM is currently disabled.
     disable();
@@ -180,10 +181,10 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
                 irq_intervals[i] = (int32_t)time_to_irq;
                 if (irq_intervals[i] <= 0)
                     issues++;
-                
-                
-                if (irq_intervals[i] >= one_buffer_cyc + 560U + 1000U)
+                if (irq_intervals[i] >= (int)one_buffer_cyc + 560 + 1000)
                     issues++;
+
+                // TODO ponder reenablign this
                 // The first interrupts is often 9500 ish after start
                 // or 7900 ish - very very odd perhaps more is needed than CYCCNT
                 // if (s->irq_times[i] <= exp_event_cyc - 123U) {
@@ -432,8 +433,16 @@ int NRF52PWM::tryPull(uint8_t b)
         // The PWM doesn't seem to respond to changes in the SHORTS register while it's active...
         // instead, we provide an empty buffer to prevent partial repetition of any previous buffer.
         stats[0].nodata++;
-        PWM.SEQ[b].PTR = (uint32_t) emptyBuffer;
-        PWM.SEQ[b].CNT = (uint32_t) NRF52PWM_EMPTY_BUFFERSIZE;
+        // Zero the existing played data if buffer is larger
+        size_t bufferLen = buffer[b].length() / sizeof(uint16_t);
+        if (false && bufferLen > NRF52PWM_EMPTY_BUFFERSIZE) {  // TODO REMOVE false (a temp disable)
+            uint16_t *bufferData = (uint16_t *) &buffer[b][0];
+            for (size_t i = 0; i < bufferLen; i++)
+                bufferData[i] = PWM_ZERO_DC;
+        } else {
+            PWM.SEQ[b].PTR = (uint32_t) emptyBuffer;
+            PWM.SEQ[b].CNT = (uint32_t) NRF52PWM_EMPTY_BUFFERSIZE;
+        }
         stopStreamingAfterBuf = 1;
     }
   tryPullReturn:
