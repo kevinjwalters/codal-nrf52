@@ -5,13 +5,8 @@
 
 using namespace codal;
 
-// TODO Experimenting with larger buffer to observe behave with extra few pulses bug
-// #define  NRF52PWM_EMPTY_BUFFERSIZE  8
-// #define  NRF52PWM_EMPTY_BUFFERSIZE 64
-// #define  NRF52PWM_EMPTY_BUFFERSIZE  4
-#define  NRF52PWM_EMPTY_BUFFERSIZE 12
+#define NRF52PWM_EMPTY_BUFFERSIZE 40
 #define PWM_ZERO_DC 0x8000  // low output
-
 static uint16_t emptyBuffer[NRF52PWM_EMPTY_BUFFERSIZE];
 
 void nrf52_pwm0_irq(void)
@@ -460,7 +455,7 @@ int NRF52PWM::tryPull(uint8_t b)
 #endif
         // Zero the existing played data if buffer is larger
         size_t sampleCount = buffer[b].length() / sizeof(uint16_t);
-        if (false && sampleCount > NRF52PWM_EMPTY_BUFFERSIZE) {  // TODO REMOVE false (a temp disable)
+        if (sampleCount > NRF52PWM_EMPTY_BUFFERSIZE) {
             uint16_t *bufferData = (uint16_t *) &buffer[b][0];
             for (size_t i = 0; i < sampleCount; i++)
                 bufferData[i] = PWM_ZERO_DC;
