@@ -25,11 +25,26 @@ using namespace codal;
 #define IRQSTATLEN 40 
 #define IRQSTATSCOUNT 4
 
-#define NRF52PWM_ERROR_SOMETHING 0x01
+#define NRF52PWM_ERROR_MALLOC      (1 << 0)
+#define NRF52PWM_ERROR_EARLYIRQ    (1 << 1)
+#define NRF52PWM_ERROR_LATEIRQ     (1 << 2)
+#define NRF52PWM_ERROR_IDLEIRQ     (1 << 3)
+#define NRF52PWM_ERROR_MISMATCHIRQ (1 << 4)
+#define NRF52PWM_ERROR_MULTIEVENT  (1 << 5)
 
 namespace codal
 {
-struct Nrf52PwmStats {
+    enum class PwmState : uint8_t
+    {
+        Inactive = 0,
+        Priming,
+        SendingBuffers,
+        SendingLastBuffer,
+        Stopping,
+        Stopped
+    };
+
+    struct Nrf52PwmStats {
     // Debugging section - TODO evolve this into a simpler error flag
     // TODO work out how to init these once per first active.
     // All times/durations are in cycles
@@ -65,12 +80,18 @@ private:
     volatile bool   streaming;              // Determines if the output is streamed, or discrete. Streamed mode maintains ordered, discrete repeats playout most recent data provided.
     volatile bool   repeatOnEmpty;          // Determines the behaviour of the PWM if a buffer underflow occurs.
     volatile int    dataReady;              // Count of the number of input buffers awaiting playout
-    volatile float  sampleRate;
-    volatile float  periodUs;               // Period between output samples, in microseconds
+    volatile float  sampleRate;             // Requested frequency in hertz
+    volatile float  periodUs;               // Acutal period between output samples, in microseconds
     volatile uint8_t bufferPlaying;         // ID of the buffer currently being played (0 or 1). Output is hardware double buffered.
     volatile int8_t stopStreamingAfterBuf;  // When stopping, the last buffer ID to play beforhand. -1 if no stop is scheduled.
-    ManagedBuffer   buffer[2];              // The ManagedBuffers currently being used by the PWN hardware
-    volatile int    errorFlag;              // TODO - finish this and work out how to retrieve it/clear it.
+    ManagedBuffer   buffer[2];              // The ManagedBuffers currently being used by the PWM hardware
+    volatile uint32_t bufferCount;          // Buffers processed
+    volatile uint32_t irqTotalCount;        // Total count of interrupts
+    volatile uint32_t irqBeginTotalCount;   // Count before preloading buffers
+    volatile uint32_t irqStopTotalCount;    // Count at PWM stop
+    volatile uint16_t errorFlag;            // Error bitfield per stream
+    volatile uint16_t errorFlagCumlative;   // Error bitfield all streams
+    volatile PwmState state;
 
     /**
      * Sets PWM hardware registers for chained buffers or simple one shot playback
@@ -79,9 +100,8 @@ private:
      */
     void setPwmLoopInten(bool streamingMode);
 
-public:
-    volatile uint32_t irqtotalcount;         // total count of interrupts
-    struct Nrf52PwmStats stats[4];           // statistics per output for debugging
+public:  
+    struct Nrf52PwmStats stats[4];           // statistics per output for debugging TODO use define size
 
     // The stream component that is serving our data
     DataSource      &upstream;

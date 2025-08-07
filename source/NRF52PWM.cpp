@@ -48,7 +48,13 @@ NRF52PWM::NRF52PWM(NRF_PWM_Type *module, DataSource &source, float sampleRate, u
     this->repeatOnEmpty = true;
     this->bufferPlaying = 0;
     this->stopStreamingAfterBuf = 0;
-    this->irqtotalcount = 0;
+    this->bufferCount = 0;
+    this->irqTotalCount = 0;
+    this->irqBeginTotalCount = 0;
+    this->irqStopTotalCount = 0;
+    this->errorFlag = 0;
+    this->errorFlagCumlative = 0;
+    this->state = PwmState::Inactive;
 
     // Clear empty buffer
     for (int i=0; i<NRF52PWM_EMPTY_BUFFERSIZE; i++)
@@ -388,6 +394,7 @@ int NRF52PWM::tryPull(uint8_t b)
 
     if (stopStreamingAfterBuf)
     {
+        state = PwmState::Stopping;
         // SHORTS must be disabled before STOP as "PWM could be immediately
         // started again if the LOOPSDONE event occurred in the same peripheral
         // clock cycle as the STOP task was triggered"
@@ -395,12 +402,18 @@ int NRF52PWM::tryPull(uint8_t b)
         PWM.TASKS_STOP = 1;
         while(PWM.EVENTS_STOPPED == 0);
         PWM.EVENTS_SEQEND[0] = PWM.EVENTS_SEQEND[1] = 0;
+        state = PwmState::Stopped;
+        irqStopTotalCount = irqTotalCount;
+        uint32_t irqs = irqStopTotalCount - irqBeginTotalCount;
+        if (irqs != bufferCount)
+            errorFlag |= NRF52PWM_ERROR_MISMATCHIRQ;
 
-        stats[0].irqtotalcountatstop = irqtotalcount;
+        stats[0].irqtotalcountatstop = irqTotalCount;
 
         active = false;
         bufferPlaying = 0;
         stopStreamingAfterBuf = 0;
+        errorFlagCumlative |= errorFlag;
 
         stats[0].pwmstops++;
 
@@ -421,6 +434,7 @@ int NRF52PWM::tryPull(uint8_t b)
         upstream.pull(buffer[b]);
         PWM.SEQ[b].PTR = (uint32_t) buffer[b].getBytes();
         PWM.SEQ[b].CNT = buffer[b].length() / 2;
+        bufferCount++;
 
         dataReady--;
 
@@ -432,6 +446,7 @@ int NRF52PWM::tryPull(uint8_t b)
     // Streaming mode is double buffered, so schedule ourself to stop after the next buffer is played, if we're so configured.
     if (streaming && active && !repeatOnEmpty)
     {
+        state = PwmState::SendingLastBuffer;
         // The PWM doesn't seem to respond to changes in the SHORTS register while it's active...
         // instead, we provide an empty buffer to prevent partial repetition of any previous buffer.
         stats[0].nodata++;
@@ -474,7 +489,14 @@ int NRF52PWM::pullRequest()
     if (streaming && !active)
     {
         active = true;
-        stats[0].irqtotalcountatstart = irqtotalcount;
+
+        stats[0].irqtotalcountatstart = irqTotalCount;
+
+        errorFlag = 0;
+        bufferCount = 0;
+        irqBeginTotalCount = irqTotalCount;
+        if (irqBeginTotalCount != irqStopTotalCount)
+            errorFlag |= NRF52PWM_ERROR_IDLEIRQ;
         upstream.dataWanted(DATASTREAM_WANTED);
 
         tryPull(bufferPlaying);
@@ -490,6 +512,8 @@ int NRF52PWM::pullRequest()
         if (bufferPlaying == 0) {
             setPwmLoopInten(streaming);
             PWM.TASKS_SEQSTART[0] = 1;
+            state = PwmState::SendingBuffers;
+
             stats[0].pwmstart_time[stats[0].pwmstarts] = DWT->CYCCNT;
             stats[0].pwmstarts++;
         } else {
@@ -509,7 +533,6 @@ void NRF52PWM::irq()
     size_t statidx = stats[0].irqcount % IRQSTATLEN;
     stats[0].irq_times[statidx] = DWT->CYCCNT;
     stats[0].irqcount++;
-    irqtotalcount++;  // this counter will eventually wrap
     if (!active) {
         stats[0].irqinactive++;
     }
@@ -520,12 +543,18 @@ void NRF52PWM::irq()
         stats[0].irqprestart++;
     }
 
+    irqTotalCount++;  // this counter will eventually wrap
+    if (state == PwmState::Inactive || state == PwmState::Priming)
+        errorFlag |= NRF52PWM_ERROR_EARLYIRQ;
+    else if (state == PwmState::Stopping || state == PwmState::Stopped)
+        errorFlag |= NRF52PWM_ERROR_LATEIRQ;
+
     // once the sequence has finished playing, load up the next buffer.
     bool end0 = PWM.EVENTS_SEQEND[0];
     if (end0)
     {
         bufferPlaying = 1;
-        tryPull(0);  // TODO log CYCCNT based duration in stats
+        tryPull(0);
         stats[0].irq0++;
 
         PWM.EVENTS_SEQEND[0] = 0;
@@ -535,10 +564,14 @@ void NRF52PWM::irq()
     if (end1)
     {
         bufferPlaying = 0;
-        tryPull(1);  // TODO log CYCCNT based duration in stats
+        tryPull(1);
         stats[0].irq1++;
 
         PWM.EVENTS_SEQEND[1] = 0;
+    }
+
+    if (end0 && end1) {
+        errorFlag |= NRF52PWM_ERROR_MULTIEVENT;
     }
 
     if (end0 && end1) {
