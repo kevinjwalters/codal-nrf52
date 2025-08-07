@@ -173,6 +173,7 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
     if (s->preloadfails > 0 || s->dataReadyAtStop > 0 || s->nodata != 1)
         issues++;
 
+    // TODO - clock speed (MHz) and buffer size for maths
     uint32_t one_buffer_cyc = (uint32_t)(64 * 128 * periodUs);
     int32_t irq_intervals[IRQSTATLEN] = {0};
     if (s->pwmstarts > 0) {
@@ -191,9 +192,11 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
                 if (irq_intervals[i] >= (int)one_buffer_cyc + 560 + 1000)
                     issues++;
 
-                // TODO ponder reenablign this
+                // TODO ponder re-enabling this
                 // The first interrupts is often 9500 ish after start
-                // or 7900 ish - very very odd perhaps more is needed than CYCCNT
+                // or 7900 ish which seems impossible as min time should
+                // be 128 * 1.25 * 64 = 10240 cycles
+                // very very odd perhaps CYCCNT + somethnigelse is needed
                 // if (s->irq_times[i] <= exp_event_cyc - 123U) {
                 //     issues++;
                 // } else if (s->irq_times[i] >= exp_event_cyc + 2345U) {
@@ -204,7 +207,6 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
             }
         }
     }
-    // TODO - get buffer size from somewhere + clock speed for 64MHz
     uint32_t risky_cyc = (uint32_t)(one_buffer_cyc * 0.90f);
     for (int i = 0; i < IRQSTATLEN && s->trypull_dur[i] != 0; i++) {
         
@@ -215,14 +217,9 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
     }
 
     int testtrigger = 0;
-    // if (DWT->CYCCNT % 1000 < 10)   // TODO - REMOVE JUST FOR TESTING
+    // if (DWT->CYCCNT % 1000 < 10)
     //    testtrigger++;
 
-    // if (issues > 0) {
-    //     system_timer_wait_us(2000);  // TODO - remove, temporary to make more visible on logic analyzer
-    //     return;
-    // }
-     
     if (issues > 0 || testtrigger) {
         DMESG("NRF52PWM anomalyCheckStart(%d) issues=%d", bufcnt, issues);
         for (int si = NRF52PWM_STATS - 1; si >= 0; si--) {

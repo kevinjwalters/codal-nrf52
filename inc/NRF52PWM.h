@@ -48,15 +48,13 @@ namespace codal
 
 #if NRF52PWM_STATS > 0
     struct Nrf52PwmStats {
-    // Debugging section - TODO evolve this into a simpler error flag
-    // TODO work out how to init these once per first active.
     // All times/durations are in cycles
-    volatile uint32_t irqcount;               // counter
-    volatile uint32_t irq0;                   // counter for SEQEND[0]
-    volatile uint32_t irq1;                   // counter for SEQEND[1]
-    volatile uint32_t irqboth;                // counter for double event
-    volatile uint32_t irq_times[IRQSTATLEN];      // timestamps
-    volatile int    irq_seqend[IRQSTATLEN];       // bitmask for events
+    volatile uint32_t irqcount;             // counter
+    volatile uint32_t irq0;                 // counter for SEQEND[0]
+    volatile uint32_t irq1;                 // counter for SEQEND[1]
+    volatile uint32_t irqboth;              // counter for double event
+    volatile uint32_t irq_times[IRQSTATLEN];  // timestamps
+    volatile int    irq_seqend[IRQSTATLEN];   // bitmask for events
     volatile int    irqinactive;            // interrupts while !active
     volatile int    irqprestart;            // interrupts before pwm start (zero expected!)
     volatile int    irqpoststop;            // interrupts after a stop (one expected)
@@ -97,7 +95,7 @@ private:
     volatile uint16_t errorFlagCumlative;   // Error bitfield all streams
     volatile PwmState state;
 #if NRF52PWM_STATS > 0
-    struct Nrf52PwmStats stats[NRF52PWM_STATS];           // statistics per output for debugging TODO use define size
+    struct Nrf52PwmStats stats[NRF52PWM_STATS];  // statistics per stream for debugging
 #endif
 
 public:  
