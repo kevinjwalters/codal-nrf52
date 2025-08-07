@@ -8,11 +8,6 @@ using namespace codal;
 
 #if CONFIG_ENABLED(HARDWARE_NEOPIXEL)
 
-int breakpoint1() {
-    int a=1;
-    return a * 123;
-}
-
 void codal::neopixel_send_buffer(Pin &pin, const uint8_t *ptr, int numBytes)
 {
     static NRF52PWM *pwm = NULL;
@@ -20,12 +15,13 @@ void codal::neopixel_send_buffer(Pin &pin, const uint8_t *ptr, int numBytes)
 
     if (pwm == NULL)
     {
-        // TODO remove this - for CYCCNT for stats
+#if NRF52PWM_STATS > 0
         // Enable Data Watchpoint and Trace Unit (DWT) Cycle Counter
+        // This is needed if not running under a debugger
         CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
         DWT->CYCCNT = 0;
         DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-
+#endif
         ws = new WS2812B();
         pwm = new NRF52PWM(NRF_PWM2, *ws, WS2812B_PWM_FREQ);
         pwm->setStreamingMode(true, false);
@@ -34,37 +30,17 @@ void codal::neopixel_send_buffer(Pin &pin, const uint8_t *ptr, int numBytes)
 
     pwm->connectPin(pin, 0);
 
-    // TODO - remove debugging code
-    if (0) {
-        uint32_t prev_count  = pwm->stats[0].irqcount;
-        system_timer_wait_us(400);
-        if (pwm->stats[0].irqcount != prev_count) {
-            target_panic(701); 
-        }
-    }
-
+#if NRF52PWM_STATS > 0
     pwm->zeroStats();
+#endif
     ws->play(ptr, numBytes);
+#if NRF52PWM_STATS > 0
     int samplesPerBuffer = WS2812B_BUFFER_SIZE / 2;
     int samples = (numBytes * 8 + 2 * WS2812B_ZERO_PADDING);
     int bufcnt = max(2,
                      samples / samplesPerBuffer + (samples % samplesPerBuffer > 0 ? 1 : 0));
     pwm->anomalyCheckStats(bufcnt);
-
-    // TODO - remove debuggin code
-    volatile int discard;
-    if (pwm->stats[0].irqprestart > 0 || pwm->stats[0].irqpoststop > 0) {
-        discard = breakpoint1();
-    }
-
-    // TODO - remove debugging code
-    if (0) {
-        uint32_t prev_count  = pwm->stats[0].irqcount;
-        system_timer_wait_us(400);
-        if (pwm->stats[0].irqcount != prev_count) {
-            target_panic(702); 
-        }
-    }
+#endif
 }
 
 #else

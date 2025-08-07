@@ -115,13 +115,14 @@ NRF52PWM::NRF52PWM(NRF_PWM_Type *module, DataSource &source, float sampleRate, u
     upstream.connect(*this);
 }
 
+#if NRF52PWM_STATS > 0
 /**
   * Clear the statistics, typically used before starting to output PWM
   * This is flawed due to not zeroing historical data
   */
 void NRF52PWM::zeroStats() {
     // copy values to make history
-    for (int i = IRQSTATSCOUNT - 1; i >= 0; i--) {
+    for (int i = NRF52PWM_STATS - 1; i >= 0; i--) {
        memcpy(&stats[i], &stats[i - 1], sizeof(stats[0]));
     }
 
@@ -158,7 +159,7 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
         issues++;
     if (s->irqtotalcountatstop != s->irqtotalcountatstart + s->irqcount)
         issues++;
-#if IRQSTATSCOUNT > 1 
+#if NRF52PWM_STATS > 1
     // Look for interrupts occuring while PWM should be not running
     if (s->irqtotalcountatstart != 0 && stats[1].irqtotalcountatstop != s->irqtotalcountatstart)
         issues++;
@@ -224,7 +225,7 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
      
     if (issues > 0 || testtrigger) {
         DMESG("NRF52PWM anomalyCheckStart(%d) issues=%d", bufcnt, issues);
-        for (int si = IRQSTATSCOUNT - 1; si >= 0; si--) {
+        for (int si = NRF52PWM_STATS - 1; si >= 0; si--) {
             struct Nrf52PwmStats *s = &stats[si];
             DMESG("stats[%d]", si);
             DMESG("irqcount=%u irq0=%u irq1=%u irqboth=%u",
@@ -254,7 +255,7 @@ void NRF52PWM::anomalyCheckStats(int bufcnt) {
         }
     }
 }
-
+#endif
 
 /**
  * Determine the DAC playback sample rate to the given frequency.
@@ -389,7 +390,9 @@ void NRF52PWM::setPwmLoopInten(bool streamingMode) {
  */
 int NRF52PWM::tryPull(uint8_t b)
 {
+#if NRF52PWM_STATS > 0
     uint32_t t1_cyc = DWT->CYCCNT;
+#endif
     int filled = 0;
 
     if (stopStreamingAfterBuf)
@@ -408,20 +411,26 @@ int NRF52PWM::tryPull(uint8_t b)
         if (irqs != bufferCount)
             errorFlag |= NRF52PWM_ERROR_MISMATCHIRQ;
 
+#if NRF52PWM_STATS > 0
         stats[0].irqtotalcountatstop = irqTotalCount;
+#endif
 
         active = false;
         bufferPlaying = 0;
         stopStreamingAfterBuf = 0;
         errorFlagCumlative |= errorFlag;
 
+#if NRF52PWM_STATS > 0
         stats[0].pwmstops++;
+#endif
 
         upstream.dataWanted(DATASTREAM_NOT_WANTED);  // all the data has been PWMed
 
         // If a Pull request has been made since we decided to stop, start to fill up the
         // hardware double buffer so that we don't stall.
+#if NRF52PWM_STATS > 0
         stats[0].dataReadyAtStop = dataReady;
+#endif
         if (dataReady > 0)
         {
             dataReady--;
@@ -449,7 +458,9 @@ int NRF52PWM::tryPull(uint8_t b)
         state = PwmState::SendingLastBuffer;
         // The PWM doesn't seem to respond to changes in the SHORTS register while it's active...
         // instead, we provide an empty buffer to prevent partial repetition of any previous buffer.
+#if NRF52PWM_STATS > 0
         stats[0].nodata++;
+#endif
         // Zero the existing played data if buffer is larger
         size_t sampleCount = buffer[b].length() / sizeof(uint16_t);
         if (false && sampleCount > NRF52PWM_EMPTY_BUFFERSIZE) {  // TODO REMOVE false (a temp disable)
@@ -464,7 +475,9 @@ int NRF52PWM::tryPull(uint8_t b)
     }
   tryPullReturn:
 
+#if NRF52PWM_STATS > 0
     stats[0].trypull_dur[stats[0].trypullcnt++ % IRQSTATLEN] = DWT->CYCCNT - t1_cyc;
+#endif
     return filled;
 }
 
@@ -489,9 +502,9 @@ int NRF52PWM::pullRequest()
     if (streaming && !active)
     {
         active = true;
-
+#if NRF52PWM_STATS > 0
         stats[0].irqtotalcountatstart = irqTotalCount;
-
+#endif
         errorFlag = 0;
         bufferCount = 0;
         irqBeginTotalCount = irqTotalCount;
@@ -514,11 +527,15 @@ int NRF52PWM::pullRequest()
             PWM.TASKS_SEQSTART[0] = 1;
             state = PwmState::SendingBuffers;
 
+#if NRF52PWM_STATS > 0
             stats[0].pwmstart_time[stats[0].pwmstarts] = DWT->CYCCNT;
             stats[0].pwmstarts++;
+#endif
         } else {
             active = false;
+#if NRF52PWM_STATS > 0
             stats[0].preloadfails++;
+#endif
         }
     }
 
@@ -530,6 +547,7 @@ int NRF52PWM::pullRequest()
  */
 void NRF52PWM::irq()
 {
+#if NRF52PWM_STATS > 0
     size_t statidx = stats[0].irqcount % IRQSTATLEN;
     stats[0].irq_times[statidx] = DWT->CYCCNT;
     stats[0].irqcount++;
@@ -542,6 +560,7 @@ void NRF52PWM::irq()
     if (stats[0].pwmstarts == 0) {
         stats[0].irqprestart++;
     }
+#endif
 
     irqTotalCount++;  // this counter will eventually wrap
     if (state == PwmState::Inactive || state == PwmState::Priming)
@@ -555,8 +574,9 @@ void NRF52PWM::irq()
     {
         bufferPlaying = 1;
         tryPull(0);
+#if NRF52PWM_STATS > 0
         stats[0].irq0++;
-
+#endif
         PWM.EVENTS_SEQEND[0] = 0;
     }
 
@@ -565,19 +585,21 @@ void NRF52PWM::irq()
     {
         bufferPlaying = 0;
         tryPull(1);
+#if NRF52PWM_STATS > 0
         stats[0].irq1++;
-
+#endif
         PWM.EVENTS_SEQEND[1] = 0;
     }
 
     if (end0 && end1) {
         errorFlag |= NRF52PWM_ERROR_MULTIEVENT;
     }
-
+#if NRF52PWM_STATS > 0
     if (end0 && end1) {
         stats[0].irqboth++;
     }
     stats[0].irq_seqend[statidx] = (end1 ? 0b10 : 0) + (end0 ? 0b01 : 0);
+#endif
 }
 
 /**

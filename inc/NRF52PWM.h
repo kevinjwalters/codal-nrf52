@@ -22,8 +22,10 @@
 using namespace codal;
 #endif
 
+// #define NRF52PWM_STATS 4
+#if NRF52PWM_STATS > 0
 #define IRQSTATLEN 40 
-#define IRQSTATSCOUNT 4
+#endif
 
 #define NRF52PWM_ERROR_MALLOC      (1 << 0)
 #define NRF52PWM_ERROR_EARLYIRQ    (1 << 1)
@@ -44,6 +46,7 @@ namespace codal
         Stopped
     };
 
+#if NRF52PWM_STATS > 0
     struct Nrf52PwmStats {
     // Debugging section - TODO evolve this into a simpler error flag
     // TODO work out how to init these once per first active.
@@ -69,6 +72,7 @@ namespace codal
     volatile uint32_t irqtotalcountatstart; // record of irqtotalcount at start
     volatile uint32_t irqtotalcountatstop;  // record of irqtotalcount at stop
 };
+#endif
 
 class NRF52PWM : public CodalComponent, public DataSink, public PinPeripheral
 {
@@ -92,7 +96,11 @@ private:
     volatile uint16_t errorFlag;            // Error bitfield per stream
     volatile uint16_t errorFlagCumlative;   // Error bitfield all streams
     volatile PwmState state;
+#if NRF52PWM_STATS > 0
+    struct Nrf52PwmStats stats[NRF52PWM_STATS];           // statistics per output for debugging TODO use define size
+#endif
 
+    // TOOD Move this to bottom
     /**
      * Sets PWM hardware registers for chained buffers or simple one shot playback
      * 
@@ -101,8 +109,6 @@ private:
     void setPwmLoopInten(bool streamingMode);
 
 public:  
-    struct Nrf52PwmStats stats[4];           // statistics per output for debugging TODO use define size
-
     // The stream component that is serving our data
     DataSource      &upstream;
 
@@ -119,6 +125,7 @@ public:
       */
     NRF52PWM(NRF_PWM_Type *module, DataSource &source, float sampleRate = NRF52PWM_DEFAULT_FREQUENCY, uint16_t id = DEVICE_ID_SYSTEM_DAC);
 
+#if NRF52PWM_STATS > 0
     /**
      * Clear the statistics, typically used before starting to output PWM
      */
@@ -129,6 +136,7 @@ public:
      * DMESG print whole structure.
      */
     void anomalyCheckStats(int bufcnt);
+#endif
 
     /**
      * Callback provided when data is ready.
