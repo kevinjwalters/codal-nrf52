@@ -82,7 +82,7 @@ namespace codal
         virtual void connect(DataSink &sink);
 
         /**
-         * Experimental: used by downstream caller to indicate all data has been sent.
+         * Downstream caller uses this to indicate all data has been sent.
          */
         virtual void dataWanted(int wanted);
 

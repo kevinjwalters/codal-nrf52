@@ -342,7 +342,7 @@ int NRF52PWM::setDecoderMode(uint32_t mode)
 /**
  * Defines if the PWM module should maintain playout ordering of buffers, or always play the most recent buffer provided.
  * 
- * @ param streamingMode If true, buffers will be streamed in order they are received. If false, the most recent buffer supplied always takes prescedence.
+ * @ param streamingMode If true, buffers will be streamed in order they are received. If false, the most recent buffer supplied always takes precedence.
  * @ param repeatOnEmpty If set to true, the last buffer received will be repeated when no data is available. If false, the PWM channel will be suspended.
  */
 void NRF52PWM::setStreamingMode(bool streamingMode, bool repeatOnEmpty)
@@ -355,7 +355,7 @@ void NRF52PWM::setStreamingMode(bool streamingMode, bool repeatOnEmpty)
 /**
  * Sets PWM hardware registers for chained buffers or simple one shot playback
  * 
- * @ param streamingMode If true, buffers will be streamed in order they are received. If false, the most recent buffer supplied always takes prescedence.
+ * @ param streamingMode If true, buffers will be streamed in order they are received. If false, the most recent buffer supplied always takes precedence.
  */
 void NRF52PWM::setPwmLoopInten(bool streamingMode) {
     if (streamingMode)

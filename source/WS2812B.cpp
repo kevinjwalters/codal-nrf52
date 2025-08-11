@@ -132,7 +132,7 @@ void WS2812B::pull(ManagedBuffer &buffer)
 
 
 /**
- * Experimental: used by downstream caller to indicate all data has been sent.
+ * Downstream caller uses this to indicate all data has been sent.
  * @param wanted set to DATASTREAM_NOT_WANTED to indicate all data sent
  */
 void WS2812B::dataWanted(int wanted)
